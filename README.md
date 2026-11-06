@@ -1,8 +1,17 @@
-# pico-pcePlus
+# pico-pcePlus (TurboExpress edition)
+
+> [!NOTE]
+> This branch turns the emulator into a **TurboExpress (PC Engine GT)** handheld emulator.
+> - **HuCards only** (`.pce`). CD-ROM² (`.cue`, `.chd`, `.iso`), SuperGrafx (`.sgx`) and the Arcade Card are not supported; the CD register range `$1800-$1AFF` is not mapped.
+> - **One 2-button pad** (D-Pad, I, II, Select, Run). No multitap, no 6-button pad, no TurboLink.
+> - **Turbo switches** for I and II (OFF / SLOW ~10 Hz / FAST ~20 Hz). Press **L** (switch I) or **R** (switch II) on the pad to cycle them in game, or set them under Settings. A short notice shows the new state.
+> - **LCD look**: desaturated, lower-contrast palette, a fine pixel grid and 256-px modes stretched to 4:3. Toggle with Settings > *LCD effect*. No ghosting (it needs a second framebuffer that does not fit without PSRAM).
+> - **Audio** is mono (the built-in speaker) unless Settings > *Headphones* is ON, or the headphone jack is detected.
+> - Options are saved in `/turboexpress.cfg` on the SD card.
 
 ## Introduction
 
-**pico-pcePlus** is a PC Engine / TurboGrafx-16 emulator for RP2350-based microcontrollers. It is built on the [pce-go](https://github.com/ducalex/retro-go) emulation core from retro-go by ducalex, integrated with the video, audio, menu, and SD card framework from [pico-infonesPlus](https://github.com/PicoPlus-devel/pico-infonesPlus).
+**pico-pcePlus** is a PC Engine / TurboGrafx-16 / TurboExpress emulator for RP2350-based microcontrollers. It is built on the [pce-go](https://github.com/ducalex/retro-go) emulation core from retro-go by ducalex, integrated with the video, audio, menu, and SD card framework from [pico-infonesPlus](https://github.com/PicoPlus-devel/pico-infonesPlus).
 
 
 > [!IMPORTANT]
@@ -20,12 +29,8 @@ This project is part of a family of Raspberry Pi Pico emulator projects:
 ## What it emulates
 
 - **HuCard ROMs** — Standard PC Engine / TurboGrafx-16 cartridge dumps (`.pce`) are loaded directly from the SD card.
-- **SuperGrafx (SGX)** — SuperGrafx titles are recognised and dispatched to the second VDC. SuperGrafx support requires PSRAM, and the board must run at 384 MHz to reach the correct framerate and audio. This is only possible on configurations that use HSTX for video, such as the Adafruit Fruit Jam. On these boards, selecting a SuperGrafx game in the file browser switches the board to 384 MHz, and selecting another game switches it back; the board restarts each time. With **Overclock** on, the board stays at 384 MHz. PicoDVI configurations like the Waveshare RP2350 PiZero need an exact system clock of 252 MHz to produce 60 fps, which leaves no headroom to overclock for SuperGrafx. On those boards SuperGrafx games run at a reduced framerate and without audio.
-- **CD-ROM²** — CD-ROM² and Super CD-ROM² games are supported, including CD-DA audio playback and ADPCM streaming. CD-ROM² playback requires PSRAM and a System Card BIOS supplied by the user.
-- **Audio CDs** — Regular music CDs can be played with the CD player built into the System Card BIOS. Put a CUE/BIN or CHD image of a music CD on the SD card and start it like a CD game: the track list appears and playback, track skip, pause and the level meters all work.
 - **Save states** — Manual save and load slots are available through the in-game menu. An optional auto-save mode stores a state when the game exits and offers to resume it the next time the same ROM is launched. State files are stored on the SD card under `/savestates/PCE/<CRC32>/`.
 - **USB drive mode** — The SD card can be shown on a PC over USB from the settings menu, so files can be copied without removing it from the console. See [USB drive mode](#usb-drive-mode).
-- **Backup RAM (BRAM)** — CD-ROM² games that use the System Card's BRAM (for in-game save data) have it persisted automatically alongside the save states.
 
 | | |
 |---|---|
@@ -36,17 +41,6 @@ This project is part of a family of Raspberry Pi Pico emulator projects:
 
 
 ***
-
-## CD-ROM² disc formats
-
-Two disc-image formats are accepted:
-
-- **CUE/BIN** — Uncompressed CD images. This is the recommended format.
-- **CHD** — Compressed disc images (MAME's CHD format). CHD images are decompressed sector-by-sector at run time and are therefore generally slower than CUE/BIN. They are useful when SD card space is limited; otherwise CUE/BIN is preferred.
-
-Each disc image (and its associated tracks for CUE/BIN) should be placed in its own folder on the SD card.
-
-> **Note on SD card speed:** CD playback is sensitive to SD card speed, especially when using CHD images that must be decompressed in real time. v0.2 reduced the impact considerably, but a slow or aging card can still cause occasional stutter or audio glitches; a faster card resolves it.
 
 ### Setup Overview
 
@@ -74,7 +68,7 @@ Each disc image (and its associated tracks for CUE/BIN) should be placed in its 
 The emulator runs on RP2350-based boards in two configurations:
 
 - **RP2350 without PSRAM** — Supports HuCard ROMs, save states, and metadata display.
-- **RP2350 with PSRAM** — In addition to the above, enables SuperGrafx titles, CD-ROM² playback (CUE/BIN or CHD), Backup RAM persistence, and audio recording.
+- **RP2350 with PSRAM** — In addition to the above, enables audio recording.
 
 For board-by-board wiring, supported display modes, and which UF2 file to flash, refer to the [pico-infonesPlus documentation](https://github.com/PicoPlus-devel/pico-infonesPlus#setup). The set of supported boards and their pinouts is identical between the two projects.
 
@@ -103,7 +97,7 @@ The PicoNES and PicoNES Mini both have two controller ports, so the second playe
 > [!IMPORTANT]
 > The PicoNES also fits an original RP2040 Pico, and the PicoNES Mini exists in an RP2040-Zero flavour. Neither is of use here — this emulator requires an RP2350.
 
-Of these boards, only the Pimoroni Pico Plus 2 on the PicoNES has PSRAM. That is what CD-ROM² games, SuperGrafx titles and audio recording need; on a Pico 2, a Waveshare RP2350-Zero or a Waveshare RP2350-USB-A the emulator plays HuCard ROMs.
+Of these boards, only the Pimoroni Pico Plus 2 on the PicoNES has PSRAM. That is what audio recording needs; on a Pico 2, a Waveshare RP2350-Zero or a Waveshare RP2350-USB-A the emulator plays HuCard ROMs.
 
 > [!NOTE]
 > Sellers on AliExpress have copied the PicoNES design and sell ready-made boards. For questions about those, contact the seller.
@@ -164,22 +158,6 @@ The parts list, build instructions and case are in the [Instructables guide, ste
 
 ***
 
-## CD-ROM² BIOS
-
-CD-ROM² games require a System Card BIOS to boot. The BIOS file must be supplied by the user; it is not distributed with the emulator.
-
-### Placement
-
-- Create a `/bios/` folder in the root of the SD card and place one or more BIOS files there (with a `.pce` extension, or named `cd_bios.rom`).
-- Alternatively, place a BIOS file alongside a disc image; this takes precedence over `/bios/` and allows a per-game override.
-
-The emulator identifies BIOS files by CRC32 and, when several are available, selects the most capable variant automatically. For maximum compatibility the **Super CD-ROM System v3.0 (JP)** or the **Arcade Card Pro (JP)** BIOS is recommended.
-
-> [!NOTE]
-> Without a recognised BIOS file in `/bios/` (or alongside the disc image), CD-ROM² games will fail to load.
-
-***
-
 ## Metadata
 
 The emulator can display box art and a short text description for each ROM when a metadata pack is present on the SD card. With the pack installed, pressing **START** on a ROM in the file browser displays its metadata; the screensaver also shows random box art.
@@ -223,7 +201,7 @@ In the list:
 | SELECT | Remove the highlighted game from the list. Asks for confirmation first. This only removes the entry; the file on the SD card is left alone. |
 | START | Show [metadata](#metadata) and box art (when available). |
 
-Games are added automatically when they are started, so nothing has to be enabled. HuCard, SuperGrafx and CD games all appear in the list; starting a game that is already in it moves it back to the top. The list closes by itself after a minute without input.
+Games are added automatically when they are started, so nothing has to be enabled. HuCard games appear in the list; starting a game that is already in it moves it back to the top. The list closes by itself after a minute without input.
 
 The list is kept in **`/recent_PCE.txt`** in the root of the SD card, as plain text with one game per line. It survives a reboot and can be read, edited or deleted on a PC. Deleting the file simply empties the list, and a damaged file is treated as an empty list — unlike the settings file, nothing else is reset. Each emulator running under [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader) keeps its own list.
 
@@ -242,7 +220,7 @@ the order they appear on screen.
 | Setting | Description |
 | ------- | ----------- |
 | Recently played | Open the list of the [last 20 games that were started](#recently-played-games) and start one of them. File browser only, not available in-game. |
-| Quit game | Leave the game and return to the file browser. For CD-ROM² games the Backup RAM (BRAM) is written to the SD card here, and when auto save is enabled a save state is stored as well. In-game only. |
+| Quit game | Leave the game and return to the file browser. When auto save is enabled a save state is stored as well. In-game only. |
 | Reset game | Reset the running game. In-game only. |
 | Return to emulator selection | Go back to the emulator picker. Only present in [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader) builds. |
 | Save/Load State | Save or load the game state in one of five slots or the quick save slot, and switch automatic saving on exit and loading on start on or off. In-game only. |
@@ -255,7 +233,7 @@ the order they appear on screen.
 | Overscan fix in menu | For TVs that cut off the edges of the picture. **Off** (default), **Rows** leaves the top and bottom text rows of the menus blank, **Rows & columns** also leaves the first and last columns blank. The effect is shown while the setting is changed. It applies to the menus only, not to the game picture. |
 | Fruit Jam VU Meter | Let the NeoPixel LEDs follow the audio level. Fruit Jam only. |
 | Fruit Jam Volume Control | Volume of the built-in speaker and the audio jack (-63 to +23 dB). Fruit Jam only. |
-| Overclock | Raise the CPU clock from 252 MHz to 384 MHz. The board reboots to apply the change. Required for SuperGrafx games to run at full speed with audio. HSTX boards only. File browser only, not available in-game. |
+| Overclock | Raise the CPU clock from 252 MHz to 384 MHz. The board reboots to apply the change. HSTX boards only. File browser only, not available in-game. |
 | Controller Test | Show a gamepad graphic that follows the controller a button was last pressed on, plus a list of connected input sources. Useful for checking wiring and button mappings. Hold SELECT + UP for 2 seconds to exit. |
 | Enter BOOTSEL Mode | Reboot into BOOTSEL so new firmware can be flashed. |
 | USB Drive Mode | Show the SD card on a computer as a USB drive, so games can be added or removed without taking the card out. See [USB drive mode](#usb-drive-mode). File browser only, not available in-game. |

@@ -37,6 +37,7 @@ extern "C"
 #include "cd.h"
 #include "cd_chd.h"
 #include "gfx.h"
+#include "turboexpress.h"
 }
 
 #if HSTX
@@ -54,6 +55,18 @@ static uint32_t fps = 0;
 static uint8_t framesbeforeAutoStateIsLoaded = 0;
 static char fpsString[16] = "00";
 static int fpsStringLen = 2;
+
+// Short on-screen notice when a turbo switch changes (bottom-left, ~1.5 s).
+static char toastString[16] = "";
+static int toastLen = 0;
+static int toastFrames = 0;
+static void showTurboToast()
+{
+    static const char *const names[] = {"OFF", "SLOW", "FAST"};
+    toastLen = snprintf(toastString, sizeof(toastString), "I:%s II:%s",
+                        names[te_cfg.turbo_switch_I % 3], names[te_cfg.turbo_switch_II % 3]);
+    toastFrames = 90;
+}
 
 #define AUDIOBUFFERSIZE 4096
 #define PCE_AUDIO_RATE 44100
@@ -152,6 +165,9 @@ static uint16_t wiipad_raw_cached = 0;
 
 // Build the palette lookup table mapping 8-bit PCE color indices to RGB
 // PCE palette index encoding: GGG_RRR_BB (3-bit green, 3-bit red, 2-bit blue)
+static const int teSatTab[5] = {256, 230, 210, 180, 140};       // x/256
+static const int teContrastTab[5] = {256, 240, 225, 200, 170};  // x/256
+
 static void buildPaletteLUT()
 {
     for (int i = 0; i < 256; i++)
@@ -159,20 +175,46 @@ static void buildPaletteLUT()
         int g3 = (i >> 5) & 7;
         int r3 = (i >> 2) & 7;
         int b2 = (i >> 0) & 3;
+        int r8 = r3 * 255 / 7, g8 = g3 * 255 / 7, b8 = b2 * 255 / 3;
+        if (te_cfg.lcd)
+        {
+            // 1990 LCD panel: saturation x0.82, contrast x0.88 around mid grey, slight lift.
+            int l = (77 * r8 + 150 * g8 + 29 * b8) >> 8;
+            int *ch[3] = {&r8, &g8, &b8};
+            for (int k = 0; k < 3; k++)
+            {
+                int c = l + (((*ch[k] - l) * teSatTab[te_cfg.lcd_sat]) >> 8);
+                c = 128 + (((c - 128) * teContrastTab[te_cfg.lcd_contrast]) >> 8) + 5;
+                *ch[k] = c < 0 ? 0 : (c > 255 ? 255 : c);
+            }
+        }
 #if !HSTX
         // RGB444
-        int r4 = (r3 << 1) | (r3 >> 2);
-        int g4 = (g3 << 1) | (g3 >> 2);
-        int b4 = (b2 << 2) | b2;
-        paletteLUT[i] = (r4 << 8) | (g4 << 4) | b4;
+        paletteLUT[i] = ((r8 >> 4) << 8) | ((g8 >> 4) << 4) | (b8 >> 4);
 #else
         // RGB555
-        int r5 = (r3 << 2) | (r3 >> 1);
-        int g5 = (g3 << 2) | (g3 >> 1);
-        int b5 = (b2 << 3) | (b2 << 1) | (b2 >> 1);
-        paletteLUT[i] = (r5 << 10) | (g5 << 5) | b5;
+        paletteLUT[i] = ((r8 >> 3) << 10) | ((g8 >> 3) << 5) | (b8 >> 3);
 #endif
     }
+}
+
+// LCD pixel grid: darkens a pixel by p >> shift per channel (50/25/12.5 %).
+// The mask keeps the low bits of each channel after the shift, so no borrow
+// crosses channels.
+#if !HSTX
+#define TE_CH_BITS 4
+#else
+#define TE_CH_BITS 5
+#endif
+static uint32_t teDarkMask = 0;
+static int teDarkShift = 2;
+static void teApplyGrid()
+{
+    static const int shifts[4] = {0, 3, 2, 1};
+    int s = shifts[te_cfg.lcd_grid & 3];
+    teDarkShift = s ? s : 2;
+    uint32_t ch = (1u << (TE_CH_BITS - teDarkShift)) - 1;
+    teDarkMask = te_cfg.lcd_grid ? (ch | (ch << TE_CH_BITS) | (ch << (2 * TE_CH_BITS))) : 0;
 }
 
 static int16_t pce_audio_buffer[PCE_SAMPLES_PER_FRAME_MAX * 2]; // stereo interleaved
@@ -238,8 +280,30 @@ extern "C" void __not_in_flash_func(osd_gfx_lines_rendered)(int first_line, int 
     dst = b->data();
 #endif
 
-    if (current_x_offset > 0)
-        memset(dst, 0, current_x_offset * sizeof(uint16_t));
+    // 256-wide modes fill the 4:3 LCD: nearest-neighbour 4 -> 5 (first pixel doubled).
+    const bool stretch = te_cfg.lcd && current_screen_w == 256;
+    const int out_x = stretch ? 0 : current_x_offset;
+    const int out_w = stretch ? 320 : current_screen_w;
+
+    if (out_x > 0)
+        memset(dst, 0, out_x * sizeof(uint16_t));
+
+    if (stretch)
+    {
+        const uint8_t *s8 = pce_line_buffer;
+        uint16_t *d16 = dst;
+        for (int i = 0; i < 64; i++, s8 += 4, d16 += 5)
+        {
+            uint16_t p0 = paletteLUT[s8[0]];
+            d16[0] = p0;
+            d16[1] = p0;
+            d16[2] = paletteLUT[s8[1]];
+            d16[3] = paletteLUT[s8[2]];
+            d16[4] = paletteLUT[s8[3]];
+        }
+    }
+    else
+    {
 
     // 4 indexed pixels per iteration: one uint32_t load, four LUT lookups,
     // two uint32_t stores. pce_line_buffer and dst+offset are both 4-byte
@@ -260,16 +324,30 @@ extern "C" void __not_in_flash_func(osd_gfx_lines_rendered)(int first_line, int 
     // Defensive: handle a non-multiple-of-4 width (shouldn't happen on PCE).
     for (int x = chunks << 2; x < current_screen_w; x++)
         dst[x + current_x_offset] = paletteLUT[pce_line_buffer[x]];
+    }
 
-    int right = current_x_offset + current_screen_w;
+    int right = out_x + out_w;
     if (right < 320)
         memset(dst + right, 0, (320 - right) * sizeof(uint16_t));
+
+    if (te_cfg.lcd && teDarkMask)
+    {
+        // Odd rows are darkened entirely, even rows only on odd columns.
+        const uint32_t m = teDarkMask;
+        const uint32_t mask = (display_y & 1) ? (m | (m << 16)) : (m << 16);
+        uint32_t *w = (uint32_t *)(dst + out_x);
+        for (int i = 0, n = out_w >> 1; i < n; i++)
+        {
+            uint32_t v = w[i];
+            w[i] = v - ((v >> teDarkShift) & mask);
+        }
+    }
 
     if (settings.flags.displayFrameRate &&
         display_y >= current_y_offset + FPSSTART &&
         display_y <  current_y_offset + FPSEND)
     {
-        WORD *fpsBuffer = dst + current_x_offset + 4;
+        WORD *fpsBuffer = dst + out_x + 4;
         int rowInChar = display_y - current_y_offset - FPSSTART;
         for (int i = 0; i < fpsStringLen; i++)
         {
@@ -281,6 +359,22 @@ extern "C" void __not_in_flash_func(osd_gfx_lines_rendered)(int first_line, int 
                 else
                     *fpsBuffer++ = fpsbgcolor;
                 fontSlice >>= 1;
+            }
+        }
+    }
+
+    if (toastFrames > 0)
+    {
+        const int toastTop = current_y_offset + current_screen_h - 8;
+        if (display_y >= toastTop && display_y < toastTop + 8)
+        {
+            WORD *tp = dst + out_x + 4;
+            int row = display_y - toastTop;
+            for (int i = 0; i < toastLen; i++)
+            {
+                char slice = getcharslicefrom8x8font(toastString[i], row);
+                for (int bit = 0; bit < 8; bit++, slice >>= 1)
+                    *tp++ = (slice & 1) ? fpsfgcolor : fpsbgcolor;
             }
         }
     }
@@ -403,6 +497,10 @@ static void __not_in_flash_func(pushAudioAndOverlay)()
         cd_adpcm_generate_samples(pce_audio_buffer, pce_samples_this_frame, PCE_AUDIO_RATE);
     }
 #endif
+
+    // Internal speaker is mono; "Headphones" (setting or jack) keeps stereo.
+    if (!te_cfg.headphones && !Frens::isHeadPhoneJackConnected())
+        te_audio_downmix(pce_audio_buffer, audio_pos > pce_samples_this_frame ? audio_pos : pce_samples_this_frame);
 
     int audio_idx = 0;
 
@@ -532,6 +630,8 @@ static inline int ProcessAfterFrameIsRendered()
     nespad_read_finish();
 #endif
     tuh_task();
+    if (toastFrames > 0)
+        toastFrames--;
     if (settings.flags.displayFrameRate)
     {
         // 1-second windowed average. The previous per-frame ceil(1e6/interval)
@@ -644,10 +744,14 @@ static DWORD prevOtherButtons[2]{};
 
 #define OTHER_BUTTON1 (0b1)
 #define OTHER_BUTTON2 (0b10)
+#define OTHER_BUTTON_L (0b100)
+#define OTHER_BUTTON_R (0b1000)
 
 // PCE button definitions (from pce-go.h):
 // JOY_A=0x01, JOY_B=0x02, JOY_SELECT=0x04, JOY_RUN=0x08
 // JOY_UP=0x10, JOY_RIGHT=0x20, JOY_DOWN=0x40, JOY_LEFT=0x80
+
+static void teOptionsSave();
 
 void readInputAndMapToPCE(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool ignorepushed, char *gamepadType)
 {
@@ -677,7 +781,9 @@ void readInputAndMapToPCE(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool
                          (gp.buttons & io::GamePadState::Button::B ? JOY_B : 0) | 0;
 
         int otherButtons = (gp.buttons & io::GamePadState::Button::X ? OTHER_BUTTON1 : 0) |
-                           (gp.buttons & io::GamePadState::Button::Y ? OTHER_BUTTON2 : 0) | 0;
+                           (gp.buttons & io::GamePadState::Button::Y ? OTHER_BUTTON2 : 0) |
+                           (gp.buttons & io::GamePadState::Button::L ? OTHER_BUTTON_L : 0) |
+                           (gp.buttons & io::GamePadState::Button::R ? OTHER_BUTTON_R : 0);
 
         pcesystem[i] =
             (gp.buttons & io::GamePadState::Button::SELECT ? JOY_SELECT : 0) |
@@ -820,6 +926,16 @@ void readInputAndMapToPCE(DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem, bool
         prevOtherButtons[i] = otherButtons;
         if (pushed)
             dst = pcebuttons;
+        // Virtual TurboExpress switches: L = I, R = II. OFF -> SLOW -> FAST -> OFF.
+        if (i == 0 && !ignorepushed && (pushedother & (OTHER_BUTTON_L | OTHER_BUTTON_R)))
+        {
+            if (pushedother & OTHER_BUTTON_L)
+                te_cfg.turbo_switch_I = (te_cfg.turbo_switch_I + 1) % 3;
+            if (pushedother & OTHER_BUTTON_R)
+                te_cfg.turbo_switch_II = (te_cfg.turbo_switch_II + 1) % 3;
+            teOptionsSave();
+            showTurboToast();
+        }
         if (pushedother)
         {
             if (pushedother & OTHER_BUTTON1)
@@ -843,6 +959,10 @@ void __not_in_flash_func(process)(void)
     while (reset == false)
     {
         readInputAndMapToPCE(&pdwPad1, &pdwPad2, &pdwSystem, false, nullptr);
+        // TurboExpress: P1 only, 2 buttons + autofire switches, applied before $1000 reads.
+        PCE.Joypad.regs[0] = te_filter_pad(PCE.Joypad.regs[0]);
+        for (int p = 1; p < 8; p++)
+            PCE.Joypad.regs[p] = 0;
         audio_pos = 0;
         pce_samples_this_frame = advance_samples_this_frame();
         gfx_set_skip_render(skipRender);
@@ -954,6 +1074,76 @@ void __not_in_flash_func(process)(void)
 
 static char selectedRom[FF_MAX_LFN];
 
+// TurboExpress options: edited from the settings menu, kept in a file of their own.
+#define TE_OPTIONS_FILE "/turboexpress.cfg"
+
+static void teOptionsSave()
+{
+    static FIL fil;
+    UINT bw;
+    uint8_t buf[7] = {te_cfg.turbo_switch_I, te_cfg.turbo_switch_II, (uint8_t)te_cfg.headphones, (uint8_t)te_cfg.lcd,
+                      te_cfg.lcd_sat, te_cfg.lcd_contrast, te_cfg.lcd_grid};
+    if (f_open(&fil, TE_OPTIONS_FILE, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK)
+    {
+        f_write(&fil, buf, sizeof(buf), &bw);
+        f_close(&fil);
+    }
+}
+
+static void teOptionsLoad()
+{
+    static FIL fil;
+    UINT br;
+    uint8_t buf[7] = {0, 0, 0, 1, 2, 2, 2};
+    if (f_open(&fil, TE_OPTIONS_FILE, FA_READ) == FR_OK)
+    {
+        if (f_read(&fil, buf, sizeof(buf), &br) == FR_OK && br >= 3 &&
+            buf[0] <= TE_TURBO_FAST && buf[1] <= TE_TURBO_FAST)
+        {
+            te_cfg.turbo_switch_I = buf[0];
+            te_cfg.turbo_switch_II = buf[1];
+            te_cfg.headphones = buf[2] != 0;
+            te_cfg.lcd = buf[3] != 0;
+            if (br >= 7 && buf[4] <= 4 && buf[5] <= 4 && buf[6] <= 3)
+            {
+                te_cfg.lcd_sat = buf[4];
+                te_cfg.lcd_contrast = buf[5];
+                te_cfg.lcd_grid = buf[6];
+            }
+        }
+        f_close(&fil);
+    }
+}
+
+static int teGetTurboI() { return te_cfg.turbo_switch_I; }
+static int teGetTurboII() { return te_cfg.turbo_switch_II; }
+static int teGetLcd() { return te_cfg.lcd ? 1 : 0; }
+static int teGetHeadphones() { return te_cfg.headphones ? 1 : 0; }
+static void teSetTurboI(int v) { te_cfg.turbo_switch_I = v; teOptionsSave(); }
+static void teSetTurboII(int v) { te_cfg.turbo_switch_II = v; teOptionsSave(); }
+static int teGetSat() { return te_cfg.lcd_sat; }
+static int teGetContrast() { return te_cfg.lcd_contrast; }
+static int teGetGrid() { return te_cfg.lcd_grid; }
+static void teSetSat(int v) { te_cfg.lcd_sat = v; buildPaletteLUT(); teOptionsSave(); }
+static void teSetContrast(int v) { te_cfg.lcd_contrast = v; buildPaletteLUT(); teOptionsSave(); }
+static void teSetGrid(int v) { te_cfg.lcd_grid = v; teApplyGrid(); teOptionsSave(); }
+static void teSetLcd(int v) { te_cfg.lcd = v != 0; buildPaletteLUT(); teOptionsSave(); }
+static void teSetHeadphones(int v) { te_cfg.headphones = v != 0; teOptionsSave(); }
+
+static const char *const teSatNames[] = {"100%", "90%", "82%", "70%", "55%"};
+static const char *const teContrastNames[] = {"100%", "94%", "88%", "78%", "66%"};
+static const char *const teGridNames[] = {"OFF", "LIGHT", "MEDIUM", "STRONG"};
+static const char *const teTurboNames[] = {"OFF", "SLOW", "FAST"};
+static const MenuEmulatorOption teMenuOptions[] = {
+    {"Turbo switch I", "Autofire on button I: OFF/SLOW/FAST", 3, teTurboNames, 0, teGetTurboI, teSetTurboI},
+    {"Turbo switch II", "Autofire on button II: OFF/SLOW/FAST", 3, teTurboNames, 0, teGetTurboII, teSetTurboII},
+    {"Headphones", "ON = stereo, OFF = mono speaker", 2, nullptr, 0, teGetHeadphones, teSetHeadphones},
+    {"LCD effect", "ON = TurboExpress LCD look", 2, nullptr, 1, teGetLcd, teSetLcd},
+    {"LCD saturation", "Colour intensity of the LCD look", 5, teSatNames, 2, teGetSat, teSetSat},
+    {"LCD contrast", "Contrast of the LCD look", 5, teContrastNames, 2, teGetContrast, teSetContrast},
+    {"LCD pixel grid", "Strength of the pixel grid", 4, teGridNames, 2, teGetGrid, teSetGrid},
+};
+
 int main()
 {
     romName = selectedRom;
@@ -976,7 +1166,7 @@ int main()
     Frens::setClocksAndStartStdio(CPUFreqKHz, voltage);
 
     printf("==========================================================================================\n");
-    printf("Pico-PCE+ %s\n", SWVERSION);
+    printf("Pico-TurboExpress %s\n", SWVERSION);
     printf("Build date: %s\n", __DATE__);
     printf("Build time: %s\n", __TIME__);
     printf("CPU freq: %d kHz\n", clock_get_hz(clk_sys) / 1000);
@@ -987,6 +1177,11 @@ int main()
     FrensSettings::initSettings(FrensSettings::emulators::PCE);
     isFatalError = !Frens::initAll(selectedRom, CPUFreqKHz, 0, 0, AUDIOBUFFERSIZE, false, true);
     scaleMode8_7_ = Frens::applyScreenMode(settings.screenMode);
+    te_cfg.lcd = true;
+    te_cfg.lcd_sat = te_cfg.lcd_contrast = te_cfg.lcd_grid = 2;
+    teOptionsLoad();
+    teApplyGrid();
+    menuSetEmulatorOptions(teMenuOptions, sizeof(teMenuOptions) / sizeof(teMenuOptions[0]));
 
     // CD BIOS self-test: scan /bios/ once at boot and log what we find.
     // This is purely diagnostic — actual BIOS loading happens in LoadDisc()
@@ -1052,23 +1247,9 @@ int main()
     {
         if (strlen(selectedRom) == 0 || reset == true)
         {
-            // CD-ROM games (.cue) require PSRAM for the additional ~2.6MB of
-            // CD/SCD/ADPCM/Arcade Card buffers.
-            // SuperGrafx (.sgx) needs an extra 64 KB VRAM2 that doesn't fit in
-            // the SRAM heap alongside the 150 KB framebuffer; we route it to
-            // PSRAM and therefore require PSRAM for .sgx as well. Most SGX
-            // carts are 1 MB anyway, which already needs PSRAM to hold the ROM.
-            const char *menuExts;
-#if PICO_RP2350
-#if ENABLE_CHD
-            menuExts = Frens::isPsramEnabled() ? ".pce .cue .chd .sgx" : ".pce";
-#else
-            menuExts = Frens::isPsramEnabled() ? ".pce .cue .sgx" : ".pce";
-#endif
-#else
-            menuExts = ".pce";
-#endif
-            menu("Pico-PCE+", ErrorMessage, isFatalError, showSplash, menuExts, selectedRom);
+            // TurboExpress: HuCards only.
+            const char *menuExts = ".pce";
+            menu("TurboExpress", ErrorMessage, isFatalError, showSplash, menuExts, selectedRom);
             printf("Selected rom from menu: %s\n", selectedRom);
         }
         reset = false;
@@ -1086,6 +1267,14 @@ int main()
 #endif
                         );
             isSgxGame = (strcasecmp(ext, ".sgx") == 0);
+        }
+
+        if (isCDGame || isSgxGame)
+        {
+            snprintf(ErrorMessage, ERRORMESSAGESIZE, "TurboExpress: only .pce HuCards");
+            printf("%s\n", ErrorMessage);
+            selectedRom[0] = 0;
+            continue;
         }
 
         if (isCDGame)

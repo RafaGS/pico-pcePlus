@@ -88,8 +88,9 @@ endif()
 
 project(${projectname} C CXX ASM)
 
+# TurboExpress build: HuCard only, so libchdr (CD images) is off by default.
 if(NOT DEFINED ENABLE_CHD)
-    set(ENABLE_CHD 1)
+    set(ENABLE_CHD 0)
 endif()
 
 pico_sdk_init()

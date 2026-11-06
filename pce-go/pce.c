@@ -7,6 +7,9 @@
 #include "pce.h"
 #include "gfx.h"
 #include "cd.h"
+#include "turboexpress.h"
+
+te_config_t te_cfg;
 
 // PSRAM-aware allocator. VRAM2 is too large to keep in the SRAM heap alongside
 // the 150 KB framebuffer + everything else (causes OOM). We tried putting it in
@@ -620,7 +623,12 @@ uint8_t __not_in_flash_func(pce_readIO)(uint16_t A)
 		break;
 
 	case 0x1000:                /* Joypad */
+#if TURBOEXPRESS
+		// Only P1 exists; multitap slots 2-5 read as "nothing pressed".
+		ret = (PCE.Joypad.counter == 0 ? (PCE.Joypad.regs[0] & TE_PAD_MASK) : 0) ^ 0xff;
+#else
 		ret = PCE.Joypad.regs[PCE.Joypad.counter] ^ 0xff;
+#endif
 		if (PCE.Joypad.nibble & 1)
 			ret >>= 4;
 		else {
@@ -648,12 +656,12 @@ uint8_t __not_in_flash_func(pce_readIO)(uint16_t A)
 		break;
 
 	case 0x1A00:                // Arcade Card
-		if (CD.cd_attached)
+		if (!TURBOEXPRESS && CD.cd_attached)
 			ret = cd_read(A);
 		break;
 
 	case 0x1800:                // CD-ROM extension + Super System Card ID
-		if (CD.cd_attached)
+		if (!TURBOEXPRESS && CD.cd_attached)
 			ret = cd_read(A);
 		break;
 	}
@@ -876,12 +884,12 @@ void __not_in_flash_func(pce_writeIO)(uint16_t A, uint8_t V)
 		break;
 
 	case 0x1A00:                /* Arcade Card */
-		if (CD.cd_attached)
+		if (!TURBOEXPRESS && CD.cd_attached)
 			cd_write(A, V);
 		return;
 
 	case 0x1800:                /* CD-ROM extension + Super System Card ID */
-		if (CD.cd_attached)
+		if (!TURBOEXPRESS && CD.cd_attached)
 			cd_write(A, V);
 		return;
 

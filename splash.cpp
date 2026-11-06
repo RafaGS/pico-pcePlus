@@ -15,9 +15,9 @@ void splash()
     putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 3, 2, "P", CRED, bgcolorSplash);
     putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 4, 2, "C", CGREEN, bgcolorSplash);
     putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 5, 2, "E", CBLUE, bgcolorSplash);
-    putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 6, 2, "+", fgcolorSplash, bgcolorSplash);
+    putText((SCREEN_COLS / 2 - (strlen(s)) / 2) + 6, 2, "++", fgcolorSplash, bgcolorSplash);
 
-    strcpy(s, "PC Engine / TurboGrafx-16");
+    strcpy(s, "TurboExpress");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 4, s, fgcolorSplash, bgcolorSplash);
 
     strcpy(s, "emulator for RP2040/RP2350");
@@ -26,14 +26,14 @@ void splash()
     strcpy(s, "Based on PCE-GO and Mesen");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 7, s, fgcolorSplash, bgcolorSplash);
 
-    strcpy(s, "Pico Port");
+    strcpy(s, "Modified to emulate TurboExpress");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 9, s, fgcolorSplash, bgcolorSplash);
-    strcpy(s, "@frenskefrens");
+    strcpy(s, "RafaGS from Minibots");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 10, s, CBLUE, bgcolorSplash);
 #if !HSTX
-    strcpy(s, "DVI Support");
+    strcpy(s, "Pico Port / DVI Support");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 13, s, fgcolorSplash, bgcolorSplash);
-    strcpy(s, "@shuichi_takano");
+    strcpy(s, "@frenskefrens / @shuichi_takano");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 14, s, CBLUE, bgcolorSplash);
 #else
     strcpy(s, "HSTX video driver _ I2S audio___");
@@ -55,6 +55,6 @@ void splash()
 
     strcpy(s, "https://github.com/");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 25, s, CBLUE, bgcolorSplash);
-    strcpy(s, "PicoPlus-devel/pico-pcePlus");
+    strcpy(s, "RafaGS/pico-pcePlus");
     putText(SCREEN_COLS / 2 - strlen(s) / 2, 26, s, CBLUE, bgcolorSplash);
 }
