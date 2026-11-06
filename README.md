@@ -1,7 +1,8 @@
 # pico-pcePlus (TurboExpress edition)
 
 > [!NOTE]
-> This branch turns the emulator into a **TurboExpress (PC Engine GT)** handheld emulator.
+> This branch turns the emulator into a **TurboExpress (PC Engine GT)** handheld emulator. More info at [Minibots](https://minibots.wordpress.com).
+> 
 > - **HuCards only** (`.pce`). CD-ROM² (`.cue`, `.chd`, `.iso`), SuperGrafx (`.sgx`) and the Arcade Card are not supported; the CD register range `$1800-$1AFF` is not mapped.
 > - **One 2-button pad** (D-Pad, I, II, Select, Run). No multitap, no 6-button pad, no TurboLink.
 > - **Turbo switches** for I and II (OFF / SLOW ~10 Hz / FAST ~20 Hz). Press **L** (switch I) or **R** (switch II) on the pad to cycle them in game, or set them under Settings. A short notice shows the new state.
@@ -12,7 +13,6 @@
 ## Introduction
 
 **pico-pcePlus** is a PC Engine / TurboGrafx-16 / TurboExpress emulator for RP2350-based microcontrollers. It is built on the [pce-go](https://github.com/ducalex/retro-go) emulation core from retro-go by ducalex, integrated with the video, audio, menu, and SD card framework from [pico-infonesPlus](https://github.com/PicoPlus-devel/pico-infonesPlus).
-
 
 > [!IMPORTANT]
 > An **RP2350** board is required. The original RP2040 (Pico 1) is not supported.
@@ -32,13 +32,11 @@ This project is part of a family of Raspberry Pi Pico emulator projects:
 - **Save states** — Manual save and load slots are available through the in-game menu. An optional auto-save mode stores a state when the game exits and offers to resume it the next time the same ROM is launched. State files are stored on the SD card under `/savestates/PCE/<CRC32>/`.
 - **USB drive mode** — The SD card can be shown on a PC over USB from the settings menu, so files can be copied without removing it from the console. See [USB drive mode](#usb-drive-mode).
 
-| | |
-|---|---|
+|                                                                                                                                                             |                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <img width="400" height="225" alt="Screenshot 2026-07-02 18-17-33" src="https://github.com/user-attachments/assets/3aaf8609-8a22-4ae2-a30c-a1245db6fa3a" /> | <img width="400" height="225" alt="Screenshot 2026-07-02 18-17-44" src="https://github.com/user-attachments/assets/bbe11c91-2d1c-44f4-a0e9-f58433475f68" /> |
 | <img width="400" height="225" alt="Screenshot 2026-07-02 18-18-06" src="https://github.com/user-attachments/assets/2f5dfe78-1ea8-436e-95e6-ad5b10b90735" /> | <img width="400" height="225" alt="Screenshot 2026-07-02 18-19-17" src="https://github.com/user-attachments/assets/96554ffc-37d1-4015-b2ee-121e8e68d36f" /> |
 | <img width="400" height="225" alt="Screenshot 2026-07-02 18-22-44" src="https://github.com/user-attachments/assets/e6fcf7a5-3775-474e-b86a-a0625ae8d9a3" /> | <img width="400" height="225" alt="Screenshot 2026-07-02 18-32-00" src="https://github.com/user-attachments/assets/240948c6-d0eb-48b1-a7b8-efcc7d5ab4f7" /> |
-
-
 
 ***
 
@@ -82,12 +80,12 @@ A board and its breakouts can also be built into a finished little console on on
 
 Four community PCB designs turn a supported board and its breakouts into a small console. Nothing changes in the firmware: flash the binary for that configuration. Parts lists, ordering instructions, assembly notes, the pin assignment, the 3D-printed cases and the older design versions are described in the [PCB README](https://github.com/PicoPlus-devel/pico_shared/blob/main/PCB/README.md). The Gerber files are attached to every [release](https://github.com/PicoPlus-devel/pico-pcePlus/releases/latest) of this project.
 
-| Design | Picture | Controller ports | Board it carries | Build | Designed by |
-| --- | --- | --- | --- | --- | --- |
-| [PicoNES v2.6](#picones-pcb) | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.6_assembled.jpg" width="240" alt="PicoNES v2.6 with a Pimoroni Pico Plus 2"><br><sub>See note</sub> | 2 × NES | Pico 2, Pico 2 W or Pimoroni Pico Plus 2 | `-c2` | [John Edgar Park](https://twitter.com/johnedgarpark) |
-| [PicoNES v2.8](#picones-pcb) | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.8s_assembled.jpg" width="240" alt="PicoNES v2.8 with SNES controller ports"><br><sub>See note</sub> | 2 × SNES | Pico 2, Pico 2 W or Pimoroni Pico Plus 2 | `-c2` | [John Edgar Park](https://twitter.com/johnedgarpark) |
-| [PicoNES Mini](#picones-mini-pcb) | <img src="https://github.com/user-attachments/assets/13933b1d-af00-402e-a0a0-8456de4a82da" width="240" alt="PicoNES Mini"> | 2 × NES | Waveshare RP2350-Zero | `-c6` | [Gavin Knight](https://github.com/DynaMight1124) |
-| [PicoNES Micro](#picones-micro-pcb) | <img src="https://github.com/user-attachments/assets/59c8a31b-dc3e-47b0-8ffb-89e1eab2a75b" width="240" alt="PicoNES Micro"> | None, USB controller only | Waveshare RP2350-USB-A | `-c9` | [Gavin Knight](https://github.com/DynaMight1124) |
+| Design                              | Picture                                                                                                                                                                                               | Controller ports          | Board it carries                         | Build | Designed by                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------- | ----- | ---------------------------------------------------- |
+| [PicoNES v2.6](#picones-pcb)        | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.6_assembled.jpg" width="240" alt="PicoNES v2.6 with a Pimoroni Pico Plus 2"><br><sub>See note</sub> | 2 × NES                   | Pico 2, Pico 2 W or Pimoroni Pico Plus 2 | `-c2` | [John Edgar Park](https://twitter.com/johnedgarpark) |
+| [PicoNES v2.8](#picones-pcb)        | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.8s_assembled.jpg" width="240" alt="PicoNES v2.8 with SNES controller ports"><br><sub>See note</sub> | 2 × SNES                  | Pico 2, Pico 2 W or Pimoroni Pico Plus 2 | `-c2` | [John Edgar Park](https://twitter.com/johnedgarpark) |
+| [PicoNES Mini](#picones-mini-pcb)   | <img src="https://github.com/user-attachments/assets/13933b1d-af00-402e-a0a0-8456de4a82da" width="240" alt="PicoNES Mini">                                                                            | 2 × NES                   | Waveshare RP2350-Zero                    | `-c6` | [Gavin Knight](https://github.com/DynaMight1124)     |
+| [PicoNES Micro](#picones-micro-pcb) | <img src="https://github.com/user-attachments/assets/59c8a31b-dc3e-47b0-8ffb-89e1eab2a75b" width="240" alt="PicoNES Micro">                                                                           | None, USB controller only | Waveshare RP2350-USB-A                   | `-c9` | [Gavin Knight](https://github.com/DynaMight1124)     |
 
 > [!NOTE]
 > The PicoNES v2.6 and v2.8 are shown with a Pimoroni Pico Plus 2. A Raspberry Pi Pico 2 or Pico 2 W can also be fitted.
@@ -117,8 +115,8 @@ Populate both ports to give player 2 a pad.
 
 The parts lists and assembly notes are in the PCB README: [PicoNES v2.6](https://github.com/PicoPlus-devel/pico_shared/blob/main/PCB/README.md#picones-v26-nes-controller-ports) and [PicoNES v2.8](https://github.com/PicoPlus-devel/pico_shared/blob/main/PCB/README.md#picones-v28-snes-controller-ports).
 
-| NES controller ports (v2.6) | SNES controller ports (v2.8) |
-| --------------------------- | ---------------------------- |
+| NES controller ports (v2.6)                                                                                                                                                  | SNES controller ports (v2.8)                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.6_assembled.jpg" width="400" alt="PicoNES v2.6 with NES controller ports"> | <img src="https://raw.githubusercontent.com/PicoPlus-devel/pico_shared/main/PCB/images/picones_v2.8s_assembled.jpg" width="400" alt="PicoNES v2.8 with SNES controller ports"> |
 
 #### Which binary to flash
@@ -132,8 +130,8 @@ Gavin Knight ([DynaMight1124](https://github.com/DynaMight1124)) designed an NES
 > [!IMPORTANT]
 > If the board is mounted with male headers, download the **latest** top cover. Headers raise the board, and only the newest cover leaves room for the USB cable — the older ones assume a Pico soldered flat onto the PCB.
 
-| Top cover | Base |
-| --------- | ---- |
+| Top cover                                                                                                               | Base                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="https://github.com/user-attachments/assets/c6205db3-580e-41e9-83e4-66c9534c6519" width="380" alt="Top cover"> | <img src="https://github.com/user-attachments/assets/256bbd1b-b6db-485d-a59c-fd22fd017887" width="380" alt="Base with the PCB fitted"> |
 
 ### PicoNES Mini PCB
@@ -169,6 +167,7 @@ A metadata pack can be downloaded from the [releases page](https://github.com/Pi
 ├── images/   (box art, named by ROM CRC32)
 └── descr/    (text descriptions, named by ROM CRC32)
 ```
+
 <img width="400" height="225" alt="Screenshot 2026-07-02 18-25-51" src="https://github.com/user-attachments/assets/685485d8-d882-4ec9-aaff-76de7e95920a" />
 
 ***
@@ -193,13 +192,13 @@ The menu keeps a list of the **last 20 games that were started**, most recent fi
 
 In the list:
 
-| Button | Action |
-| ------ | ------ |
-| UP/DOWN | Select a game. |
-| Button2 | Start the highlighted game. |
-| Button1 | Close the list and return to the file browser. |
-| SELECT | Remove the highlighted game from the list. Asks for confirmation first. This only removes the entry; the file on the SD card is left alone. |
-| START | Show [metadata](#metadata) and box art (when available). |
+| Button  | Action                                                                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| UP/DOWN | Select a game.                                                                                                                              |
+| Button2 | Start the highlighted game.                                                                                                                 |
+| Button1 | Close the list and return to the file browser.                                                                                              |
+| SELECT  | Remove the highlighted game from the list. Asks for confirmation first. This only removes the entry; the file on the SD card is left alone. |
+| START   | Show [metadata](#metadata) and box art (when available).                                                                                    |
 
 Games are added automatically when they are started, so nothing has to be enabled. HuCard games appear in the list; starting a game that is already in it moves it back to the top. The list closes by itself after a minute without input.
 
@@ -217,26 +216,26 @@ The settings menu is opened with SELECT from the file browser, or with SELECT + 
 running. Not every entry is available on every board or in every situation. The entries are listed in
 the order they appear on screen.
 
-| Setting | Description |
-| ------- | ----------- |
-| Recently played | Open the list of the [last 20 games that were started](#recently-played-games) and start one of them. File browser only, not available in-game. |
-| Quit game | Leave the game and return to the file browser. When auto save is enabled a save state is stored as well. In-game only. |
-| Reset game | Reset the running game. In-game only. |
-| Return to emulator selection | Go back to the emulator picker. Only present in [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader) builds. |
-| Save/Load State | Save or load the game state in one of five slots or the quick save slot, and switch automatic saving on exit and loading on start on or off. In-game only. |
-| Screen Mode | Cycle the screen modes: 1:1 or 8:7 pixel aspect ratio, each with or without scanlines. On HSTX boards, games that use a resolution wider than 256 pixels are always shown 1:1. |
-| Scanline Type | Simple or LCD style scanlines. HSTX boards only. |
-| Framerate Overlay | Show the frames per second on screen. On HSTX boards the number of video resyncs is shown next to it. |
-| Display Mode | HDMI or DVI output. HSTX boards only. |
-| External Audio | Route audio to the I²S/line-out output instead of HDMI. Only on boards with such an output. Selecting DVI as Display Mode enables this automatically, because DVI carries no audio. |
-| Menu Font Color / Menu Font Back Color | Menu colours (0-63). The colour palette is shown while one of these two entries is selected. |
-| Overscan fix in menu | For TVs that cut off the edges of the picture. **Off** (default), **Rows** leaves the top and bottom text rows of the menus blank, **Rows & columns** also leaves the first and last columns blank. The effect is shown while the setting is changed. It applies to the menus only, not to the game picture. |
-| Fruit Jam VU Meter | Let the NeoPixel LEDs follow the audio level. Fruit Jam only. |
-| Fruit Jam Volume Control | Volume of the built-in speaker and the audio jack (-63 to +23 dB). Fruit Jam only. |
-| Overclock | Raise the CPU clock from 252 MHz to 384 MHz. The board reboots to apply the change. HSTX boards only. File browser only, not available in-game. |
-| Controller Test | Show a gamepad graphic that follows the controller a button was last pressed on, plus a list of connected input sources. Useful for checking wiring and button mappings. Hold SELECT + UP for 2 seconds to exit. |
-| Enter BOOTSEL Mode | Reboot into BOOTSEL so new firmware can be flashed. |
-| USB Drive Mode | Show the SD card on a computer as a USB drive, so games can be added or removed without taking the card out. See [USB drive mode](#usb-drive-mode). File browser only, not available in-game. |
+| Setting                                | Description                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Recently played                        | Open the list of the [last 20 games that were started](#recently-played-games) and start one of them. File browser only, not available in-game.                                                                                                                                                              |
+| Quit game                              | Leave the game and return to the file browser. When auto save is enabled a save state is stored as well. In-game only.                                                                                                                                                                                       |
+| Reset game                             | Reset the running game. In-game only.                                                                                                                                                                                                                                                                        |
+| Return to emulator selection           | Go back to the emulator picker. Only present in [pico-bootLoader](https://github.com/PicoPlus-devel/pico-bootLoader) builds.                                                                                                                                                                                 |
+| Save/Load State                        | Save or load the game state in one of five slots or the quick save slot, and switch automatic saving on exit and loading on start on or off. In-game only.                                                                                                                                                   |
+| Screen Mode                            | Cycle the screen modes: 1:1 or 8:7 pixel aspect ratio, each with or without scanlines. On HSTX boards, games that use a resolution wider than 256 pixels are always shown 1:1.                                                                                                                               |
+| Scanline Type                          | Simple or LCD style scanlines. HSTX boards only.                                                                                                                                                                                                                                                             |
+| Framerate Overlay                      | Show the frames per second on screen. On HSTX boards the number of video resyncs is shown next to it.                                                                                                                                                                                                        |
+| Display Mode                           | HDMI or DVI output. HSTX boards only.                                                                                                                                                                                                                                                                        |
+| External Audio                         | Route audio to the I²S/line-out output instead of HDMI. Only on boards with such an output. Selecting DVI as Display Mode enables this automatically, because DVI carries no audio.                                                                                                                          |
+| Menu Font Color / Menu Font Back Color | Menu colours (0-63). The colour palette is shown while one of these two entries is selected.                                                                                                                                                                                                                 |
+| Overscan fix in menu                   | For TVs that cut off the edges of the picture. **Off** (default), **Rows** leaves the top and bottom text rows of the menus blank, **Rows & columns** also leaves the first and last columns blank. The effect is shown while the setting is changed. It applies to the menus only, not to the game picture. |
+| Fruit Jam VU Meter                     | Let the NeoPixel LEDs follow the audio level. Fruit Jam only.                                                                                                                                                                                                                                                |
+| Fruit Jam Volume Control               | Volume of the built-in speaker and the audio jack (-63 to +23 dB). Fruit Jam only.                                                                                                                                                                                                                           |
+| Overclock                              | Raise the CPU clock from 252 MHz to 384 MHz. The board reboots to apply the change. HSTX boards only. File browser only, not available in-game.                                                                                                                                                              |
+| Controller Test                        | Show a gamepad graphic that follows the controller a button was last pressed on, plus a list of connected input sources. Useful for checking wiring and button mappings. Hold SELECT + UP for 2 seconds to exit.                                                                                             |
+| Enter BOOTSEL Mode                     | Reboot into BOOTSEL so new firmware can be flashed.                                                                                                                                                                                                                                                          |
+| USB Drive Mode                         | Show the SD card on a computer as a USB drive, so games can be added or removed without taking the card out. See [USB drive mode](#usb-drive-mode). File browser only, not available in-game.                                                                                                                |
 
 > [!NOTE]
 > Changes are only applied when **SAVE** is selected. **CANCEL** discards them, **DEFAULT** restores the default values. Press SELECT on any setting to jump straight to the SAVE/CANCEL/DEFAULT row.
@@ -266,10 +265,10 @@ list is re-read on the way out, so files added from the computer appear without 
 
 Behaviour depends on where controllers are connected on your board.
 
-| Board | Behaviour |
-| ----- | --------- |
-| Controllers on a separate USB port (boards built with PIO USB, such as the Fruit Jam) | The console's own USB port is free, so controllers keep working and the screen stays on. The menu returns to the game list when you are done. |
-| Controllers on the console's own USB port | That port is the one connected to the computer, so a USB controller cannot be used while the card is mounted. Press B on a controller in the NES port, or eject the drive on the computer. The console restarts afterwards. |
+| Board                                                                                 | Behaviour                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Controllers on a separate USB port (boards built with PIO USB, such as the Fruit Jam) | The console's own USB port is free, so controllers keep working and the screen stays on. The menu returns to the game list when you are done.                                                                               |
+| Controllers on the console's own USB port                                             | That port is the one connected to the computer, so a USB controller cannot be used while the card is mounted. Press B on a controller in the NES port, or eject the drive on the computer. The console restarts afterwards. |
 
 ***
 
